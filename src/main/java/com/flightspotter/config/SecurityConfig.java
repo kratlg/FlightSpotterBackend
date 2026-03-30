@@ -39,6 +39,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/spots/feed").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/spots/user/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/spots/{spotId}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/spots/*/comments").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/by-username/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/{userId}").permitAll()
                 .requestMatchers("/uploads/**").permitAll()

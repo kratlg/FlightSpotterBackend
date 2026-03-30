@@ -148,8 +148,10 @@ public class FlightServiceImpl implements FlightService {
     private List<FlightResponse> fetchFlightsFromOpenSky(String url) {
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw AppException.internalError(AppMessage.FLIGHT_API_ERROR);
+                log.warn("OpenSky returned non-2xx status: {}", response.getStatusCode());
+                return new ArrayList<>();
             }
 
             JsonNode root = objectMapper.readTree(response.getBody());
@@ -186,12 +188,11 @@ public class FlightServiceImpl implements FlightService {
                             .build());
                 }
             }
+            log.info("Fetched {} flights from OpenSky", flights.size());
             return flights;
-        } catch (AppException e) {
-            throw e;
         } catch (Exception e) {
-            log.error("Error fetching flights from OpenSky: {}", e.getMessage());
-            throw AppException.internalError(AppMessage.FLIGHT_API_ERROR);
+            log.warn("OpenSky API unavailable ({}), returning empty list", e.getMessage());
+            return new ArrayList<>();
         }
     }
 
