@@ -5,3 +5,5 @@ databaseChangeLog:
       file: classpath:db/changelog/002-create-spots-table.sql
   - include:
       file: classpath:db/changelog/003-create-comments-table.sql
+  - include:
+      file: classpath:db/changelog/004-create-favorites-table.sql
