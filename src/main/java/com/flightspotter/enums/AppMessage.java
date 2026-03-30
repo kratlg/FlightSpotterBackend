@@ -34,6 +34,11 @@ public enum AppMessage {
     SPOT_NOT_FOUND("Spot not found."),
     SPOT_NOT_AUTHORIZED("You can only modify your own spots."),
 
+    // Favorite
+    FAVORITE_ADDED("Aircraft added to favorites."),
+    FAVORITE_REMOVED("Aircraft removed from favorites."),
+    FAVORITES_FOUND("Favorites retrieved successfully."),
+
     // Comment
     COMMENT_ADDED("Comment added."),
     COMMENTS_FOUND("Comments retrieved successfully."),

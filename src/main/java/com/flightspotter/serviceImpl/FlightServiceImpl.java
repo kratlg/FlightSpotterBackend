@@ -4,30 +4,44 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flightspotter.dto.response.AircraftDetailResponse;
 import com.flightspotter.dto.response.FlightResponse;
-import com.flightspotter.enums.AppMessage;
-import com.flightspotter.exception.AppException;
 import com.flightspotter.service.FlightService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class FlightServiceImpl implements FlightService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final String openskyUsername;
+    private final String openskyPassword;
 
     private static final String OPENSKY_BASE = "https://opensky-network.org/api";
     private static final String HEXDB_BASE = "https://hexdb.io/api/v1";
     private static final String PLANESPOTTERS_BASE = "https://api.planespotters.net/pub/photos";
     private static final String ADSBDB_BASE = "https://api.adsbdb.com/v0";
+
+    public FlightServiceImpl(RestTemplate restTemplate,
+                              ObjectMapper objectMapper,
+                              @Value("${opensky.username:}") String openskyUsername,
+                              @Value("${opensky.password:}") String openskyPassword) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+        this.openskyUsername = openskyUsername;
+        this.openskyPassword = openskyPassword;
+    }
 
     @Override
     public List<FlightResponse> getLiveFlights() {
@@ -37,7 +51,8 @@ public class FlightServiceImpl implements FlightService {
     @Override
     public List<FlightResponse> getLiveFlightsByBounds(double minLat, double maxLat,
                                                         double minLon, double maxLon) {
-        String url = String.format(java.util.Locale.US, "%s/states/all?lamin=%.6f&lomin=%.6f&lamax=%.6f&lomax=%.6f",
+        String url = String.format(java.util.Locale.US,
+                "%s/states/all?lamin=%.6f&lomin=%.6f&lamax=%.6f&lomax=%.6f",
                 OPENSKY_BASE, minLat, minLon, maxLat, maxLon);
         return fetchFlightsFromOpenSky(url);
     }
@@ -71,7 +86,7 @@ public class FlightServiceImpl implements FlightService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch aircraft data from hexdb for {}: {}", icao24, e.getMessage());
+            log.warn("hexdb fetch failed for {}: {}", icao24, e.getMessage());
         }
 
         // Fetch photos from planespotters.net
@@ -99,7 +114,7 @@ public class FlightServiceImpl implements FlightService {
                 builder.photos(photoList);
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch photos for {}: {}", icao24, e.getMessage());
+            log.warn("planespotters fetch failed for {}: {}", icao24, e.getMessage());
         }
 
         // Fetch route from adsbdb.com (callsign based)
@@ -138,7 +153,7 @@ public class FlightServiceImpl implements FlightService {
                     }
                 }
             } catch (Exception e) {
-                log.warn("Failed to fetch route for callsign {}: {}", callsign, e.getMessage());
+                log.warn("adsbdb fetch failed for callsign {}: {}", callsign, e.getMessage());
             }
         }
 
@@ -147,10 +162,13 @@ public class FlightServiceImpl implements FlightService {
 
     private List<FlightResponse> fetchFlightsFromOpenSky(String url) {
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            HttpHeaders headers = buildOpenSkyHeaders();
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                log.warn("OpenSky returned non-2xx status: {}", response.getStatusCode());
+                log.warn("OpenSky returned non-2xx: {} — uçuş verisi geçici olarak alınamıyor", response.getStatusCode());
                 return new ArrayList<>();
             }
 
@@ -188,12 +206,24 @@ public class FlightServiceImpl implements FlightService {
                             .build());
                 }
             }
-            log.info("Fetched {} flights from OpenSky", flights.size());
+            log.info("OpenSky: {} uçuş alındı", flights.size());
             return flights;
         } catch (Exception e) {
-            log.warn("OpenSky API unavailable ({}), returning empty list", e.getMessage());
+            log.warn("OpenSky erişilemiyor: {} — boş liste dönülüyor", e.getMessage());
             return new ArrayList<>();
         }
+    }
+
+    private HttpHeaders buildOpenSkyHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        if (openskyUsername != null && !openskyUsername.isBlank()
+                && openskyPassword != null && !openskyPassword.isBlank()) {
+            String credentials = openskyUsername + ":" + openskyPassword;
+            String encoded = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+            headers.set("Authorization", "Basic " + encoded);
+            log.debug("OpenSky: kimlik doğrulama kullanılıyor ({})", openskyUsername);
+        }
+        return headers;
     }
 
     private String getTextOrNull(JsonNode node, String field) {
