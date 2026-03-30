@@ -34,6 +34,13 @@ public enum AppMessage {
     SPOT_NOT_FOUND("Spot not found."),
     SPOT_NOT_AUTHORIZED("You can only modify your own spots."),
 
+    // Comment
+    COMMENT_ADDED("Comment added."),
+    COMMENTS_FOUND("Comments retrieved successfully."),
+    COMMENT_DELETED("Comment deleted."),
+    COMMENT_NOT_FOUND("Comment not found."),
+    COMMENT_NOT_AUTHORIZED("You can only delete your own comments."),
+
     // Flight
     FLIGHTS_FETCHED("Live flight data retrieved successfully."),
     FLIGHT_DETAIL_FETCHED("Aircraft details retrieved successfully."),
